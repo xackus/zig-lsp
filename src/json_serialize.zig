@@ -4,7 +4,8 @@ const debug = std.debug;
 const mem = std.mem;
 const heap = std.heap;
 const json = std.json;
-const expect = std.testing.expect;
+const testing = std.testing;
+const meta = std.meta;
 
 pub fn MaybeDefined(comptime T: type) type {
     return union(enum) {
@@ -47,10 +48,10 @@ pub const Number = union(enum) {
 
 /// jsonStream must be a pointer to std.json.WriteStream
 pub fn serialize(value: var, jsonStream: var) !void {
-    comptime const valueType = @TypeOf(value);
-    comptime const info = @typeInfo(valueType);
+    comptime const T = @TypeOf(value);
+    comptime const info = @typeInfo(T);
 
-    if (valueType == json.Value) {
+    if (T == json.Value) {
         try jsonStream.emitJson(value);
         return;
     }
@@ -113,7 +114,7 @@ pub fn serialize(value: var, jsonStream: var) !void {
             }
         },
         else => {
-            @compileError("JSON serialize: Unsupported type: " ++ @typeName(valueType));
+            @compileError("JSON serialize: Unsupported type: " ++ @typeName(T));
         },
     }
 }
@@ -129,10 +130,10 @@ pub fn serialize2(value: var, alloc: *mem.Allocator) mem.Allocator.Error!json.Va
 }
 
 fn serialize2Impl(value: var, alloc: *mem.Allocator) mem.Allocator.Error!json.Value {
-    comptime const valueType = @TypeOf(value);
-    comptime const info = @typeInfo(valueType);
+    const T = @TypeOf(value);
+    const info = @typeInfo(T);
 
-    if (valueType == json.Value) {
+    if (T == json.Value) {
         return value;
     }
 
@@ -149,11 +150,11 @@ fn serialize2Impl(value: var, alloc: *mem.Allocator) mem.Allocator.Error!json.Va
         .Bool => {
             return json.Value{ .Bool = value };
         },
-        .Pointer => |ptrInfo| {
-            if (ptrInfo.size != .Slice) {
+        .Pointer => {
+            comptime if (!meta.trait.isSlice(T) and !meta.trait.isPtrTo(.Array)(T)) {
                 @compileError("JSON deserialize: Unsupported pointer type: " ++ @typeName(T));
-            }
-            if (ptrInfo.child == u8) {
+            };
+            if (meta.Elem(T) == u8) {
                 return json.Value{ .String = value };
             } else {
                 var arr = json.Value{ .Array = json.Array.init(alloc) };
@@ -196,7 +197,7 @@ fn serialize2Impl(value: var, alloc: *mem.Allocator) mem.Allocator.Error!json.Va
             }
         },
         else => {
-            @compileError("JSON serialize: Unsupported type: " ++ @typeName(valueType));
+            @compileError("JSON serialize: Unsupported type: " ++ @typeName(T));
         },
     }
 }
@@ -273,8 +274,8 @@ fn deserializeImpl(comptime T: type, value: json.Value, alloc: *mem.Allocator) D
                 if (value != .Array) {
                     return error.InvalidType;
                 }
-                var arr: T = try alloc.alloc(ptrInfo.child, value.Array.len);
-                for (value.Array.toSlice()) |item, index| {
+                var arr: T = try alloc.alloc(ptrInfo.child, value.Array.items.len);
+                for (value.Array.items) |item, index| {
                     arr[index] = try deserializeImpl(ptrInfo.child, item, alloc);
                 }
                 return arr;
@@ -389,17 +390,21 @@ test "deserialize" {
         \\}
     ;
 
-    var parser = json.Parser.init(debug.global_allocator, false);
+    var parser = json.Parser.init(testing.allocator, false);
     defer parser.deinit();
 
     var tree = try parser.parse(in);
     defer tree.deinit();
 
-    const testOut = try deserialize(Test, tree.root, debug.global_allocator);
+    var testOut = try deserialize(Test, tree.root, testing.allocator);
+    defer testOut.deinit();
 
-    expect(testOut.maybeNull1.Defined.? == 42);
-    expect(testOut.maybeNull2.Defined == null);
-    expect(testOut.maybeNull3 == .NotDefined);
+    const result = testOut.result;
 
-    _ = try serialize2(testOut, debug.global_allocator);
+    testing.expect(result.maybeNull1.Defined.? == 42);
+    testing.expect(result.maybeNull2.Defined == null);
+    testing.expect(result.maybeNull3 == .NotDefined);
+
+    var valTree = try serialize2(result, testing.allocator);
+    defer valTree.deinit();
 }

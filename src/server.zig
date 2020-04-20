@@ -2,6 +2,7 @@ const std = @import("std");
 const json = std.json;
 const debug = std.debug;
 const io = std.io;
+const fs = std.fs;
 const mem = std.mem;
 const zig = std.zig;
 
@@ -15,7 +16,7 @@ pub const TextDocument = struct {
     text: types.String,
 
     pub fn findPosition(self: *const TextDocument, position: types.Position) error{InvalidParams}!usize {
-        var it = mem.separate(self.text, "\n");
+        var it = mem.split(self.text, "\n");
 
         var line: i64 = 0;
         while (line < position.line) : (line += 1) {
@@ -38,10 +39,10 @@ pub const Server = struct {
     const MethodError = protocol.Dispatcher(Server).MethodError;
 
     alloc: *mem.Allocator,
-    outStream: *io.OutStream(std.fs.File.WriteError),
+    outStream: *fs.File.OutStream,
     documents: std.StringHashMap(TextDocument),
 
-    pub fn init(allocator: *mem.Allocator, outStream: *io.OutStream(std.fs.File.WriteError)) Self {
+    pub fn init(allocator: *mem.Allocator, outStream: *fs.File.OutStream) Self {
         return Self{
             .alloc = allocator,
             .outStream = outStream,
@@ -57,8 +58,8 @@ pub const Server = struct {
         debug.assert(requestOrResponse.validate());
 
         var mem_buffer: [1024 * 128]u8 = undefined;
-        var sliceStream = io.SliceOutStream.init(mem_buffer[0..]);
-        var jsonStream = json.WriteStream(@TypeOf(sliceStream.stream), 1024).init(&sliceStream.stream);
+        var sliceStream = io.fixedBufferStream(&mem_buffer);
+        var jsonStream = json.WriteStream(@TypeOf(sliceStream.outStream()), 1024).init(sliceStream.outStream());
 
         try serial.serialize(requestOrResponse, &jsonStream);
         try protocol.writeMessage(self.outStream, sliceStream.getWritten());
@@ -150,9 +151,8 @@ pub const Server = struct {
             const token = tree.tokens.at(err.loc());
             const location = tree.tokenLocation(0, err.loc());
 
-            var text_buf = try std.Buffer.initSize(&msgAlloc.allocator, 0);
-            var out_stream = &std.io.BufferOutStream.init(&text_buf).stream;
-            try err.render(&tree.tokens, out_stream);
+            var text_list = std.ArrayList(u8).init(&msgAlloc.allocator);
+            try err.render(&tree.tokens, text_list.outStream());
 
             diagnostics[i] = types.Diagnostic{
                 .range = types.Range{
@@ -166,7 +166,7 @@ pub const Server = struct {
                     },
                 },
                 .severity = .{ .Defined = types.DiagnosticSeverity.Error },
-                .message = text_buf.toSlice(),
+                .message = text_list.items,
             };
         }
 
@@ -234,14 +234,14 @@ pub const Server = struct {
 };
 
 pub fn main() !void {
-    var failingAlloc = std.debug.FailingAllocator.init(std.heap.page_allocator, 10000000000);
+    var failingAlloc = std.testing.FailingAllocator.init(std.heap.page_allocator, 10000000000);
     const heap = &failingAlloc.allocator;
     // const heap = std.heap.page_allocator;
 
     var in = io.getStdIn().inStream();
     var out = io.getStdOut().outStream();
 
-    var server = Server.init(heap, &out.stream);
+    var server = Server.init(heap, &out);
     defer server.deinit();
 
     var dispatcher = protocol.Dispatcher(Server).init(&server, heap);
@@ -256,7 +256,7 @@ pub fn main() !void {
 
     while (true) {
         debug.warn("mem: {}\n", .{failingAlloc.allocated_bytes - failingAlloc.freed_bytes});
-        const message = try protocol.readMessageAlloc(&in.stream, heap);
+        const message = try protocol.readMessageAlloc(&in, heap);
         defer heap.free(message);
 
         var parser = json.Parser.init(heap, false);

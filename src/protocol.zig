@@ -19,12 +19,12 @@ pub fn readMessageAlloc(stream: var, alloc: *mem.Allocator) ![]u8 {
 
     // read header
     while (true) {
-        const line = io.readLineSliceFrom(stream, buffer[0..]) catch |err| switch (err) {
-            error.OutOfMemory => return LspError.HeaderFieldTooLong,
+        const line = stream.readUntilDelimiterOrEof(buffer[0..], '\n') catch |err| switch (err) {
+            error.StreamTooLong => return LspError.HeaderFieldTooLong,
             else => return err,
-        };
+        } orelse return error.PrematureEndOfStream;
 
-        if (line.len == 0) {
+        if (line.len <= 1) { // \r
             break; // end of header
         }
 
