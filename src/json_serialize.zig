@@ -17,6 +17,8 @@ pub fn MaybeDefined(comptime T: type) type {
 }
 
 fn getMaybeDefinedChildType(comptime T: type) ?type {
+    if(T == json.Value) return null; // workaround, json.Value.dump would get referenced but it doesn't compile
+    
     switch (@typeInfo(T)) {
         .Union => |unionInfo| {
             if (unionInfo.decls.len == 1 and comptime mem.eql(u8, unionInfo.decls[0].name, "__maybe_defined")) {
