@@ -62,6 +62,7 @@ pub const Server = struct {
         var jsonStream = json.WriteStream(@TypeOf(sliceStream.outStream()), 1024).init(sliceStream.outStream());
 
         try serial.serialize(requestOrResponse, &jsonStream);
+        debug.warn("Responding with: {}\n", .{sliceStream.getWritten()});
         try protocol.writeMessage(self.outStream, sliceStream.getWritten());
     }
 
@@ -256,7 +257,11 @@ pub fn main() !void {
 
     while (true) {
         debug.warn("mem: {}\n", .{failingAlloc.allocated_bytes - failingAlloc.freed_bytes});
-        const message = try protocol.readMessageAlloc(&in, heap);
+        const message = protocol.readMessageAlloc(&in, heap) catch |err| {
+            // Don't crash on malformed requests
+            debug.warn("Error reading message: {}\n", .{err});
+            continue;
+        };
         defer heap.free(message);
 
         var parser = json.Parser.init(heap, false);
