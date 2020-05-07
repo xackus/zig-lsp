@@ -42,11 +42,7 @@ pub fn readMessageAlloc(stream: var, alloc: *mem.Allocator) ![]u8 {
     var jsonStr = try alloc.alloc(u8, json_len.?);
     errdefer alloc.free(jsonStr);
 
-    var bytes_read: usize = 0;
-
-    while (bytes_read < json_len.?) {
-        bytes_read += try stream.read(jsonStr[bytes_read..]);
-    }
+    const bytes_read = try stream.readAll(jsonStr);
 
     if (bytes_read != json_len.?) {
         return LspError.PrematureEndOfStream;
