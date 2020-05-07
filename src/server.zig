@@ -62,7 +62,6 @@ pub const Server = struct {
         var jsonStream = json.WriteStream(@TypeOf(sliceStream.outStream()), 1024).init(sliceStream.outStream());
 
         try serial.serialize(requestOrResponse, &jsonStream);
-        debug.warn("Responding with: {}\n", .{sliceStream.getWritten()});
         try protocol.writeMessage(self.outStream, sliceStream.getWritten());
     }
 

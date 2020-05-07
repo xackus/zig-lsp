@@ -25,10 +25,7 @@ pub fn readMessageAlloc(stream: var, alloc: *mem.Allocator) ![]u8 {
         } orelse return error.PrematureEndOfStream;
         try stream.skipUntilDelimiterOrEof('\n');
 
-        debug.warn("Read line from stdin: {}\n", .{line});
-
         if (line.len <= 1) { // \r
-            debug.warn("Breaking out of reading headers\n", .{});
             break; // end of header
         }
 
@@ -54,7 +51,6 @@ pub fn readMessageAlloc(stream: var, alloc: *mem.Allocator) ![]u8 {
     if (bytes_read != json_len.?) {
         return LspError.PrematureEndOfStream;
     }
-    debug.warn("\n\nReceived message with len: {}.\nBody: {}\n", .{ json_len.?, jsonStr });
 
     return jsonStr;
 }
