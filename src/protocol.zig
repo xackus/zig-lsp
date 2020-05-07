@@ -25,7 +25,7 @@ pub fn readMessageAlloc(stream: var, alloc: *mem.Allocator) ![]u8 {
         } orelse return error.PrematureEndOfStream;
         try stream.skipUntilDelimiterOrEof('\n');
 
-        if (line.len <= 1) { // \r
+        if (line.len == 0) { // we read "\r\n"
             break; // end of header
         }
 
