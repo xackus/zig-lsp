@@ -14,35 +14,37 @@ pub const LspError = error{
 };
 
 pub fn readMessageAlloc(stream: var, alloc: *mem.Allocator) ![]u8 {
-    var jsonLen: ?usize = null;
+    var json_len: ?usize = null;
     var buffer: [4 * 1024]u8 = undefined;
 
     // read header
     while (true) {
-        const line = stream.readUntilDelimiterOrEof(buffer[0..], '\n') catch |err| switch (err) {
+        const line = stream.readUntilDelimiterOrEof(buffer[0..], '\r') catch |err| switch (err) {
             error.StreamTooLong => return LspError.HeaderFieldTooLong,
             else => return err,
         } orelse return error.PrematureEndOfStream;
+        try stream.skipUntilDelimiterOrEof('\n');
 
-        if (line.len <= 1) { // \r
+        if (line.len == 0) { // we read "\r\n"
             break; // end of header
         }
 
         const pos = mem.indexOf(u8, line, ": ") orelse return LspError.InvalidHeader;
         if (mem.eql(u8, line[0..pos], "Content-Length")) {
-            jsonLen = try std.fmt.parseInt(usize, line[pos + 2 ..], 10);
+            json_len = try std.fmt.parseInt(usize, line[pos + 2 ..], 10);
         }
     }
 
-    if (jsonLen == null) {
+    if (json_len == null) {
         return LspError.InvalidHeader;
     }
 
-    var jsonStr = try alloc.alloc(u8, jsonLen.?);
+    var jsonStr = try alloc.alloc(u8, json_len.?);
     errdefer alloc.free(jsonStr);
 
-    const bytesRead = try stream.read(jsonStr);
-    if (bytesRead != jsonLen.?) {
+    const bytes_read = try stream.readAll(jsonStr);
+
+    if (bytes_read != json_len.?) {
         return LspError.PrematureEndOfStream;
     }
 

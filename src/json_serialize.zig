@@ -17,8 +17,8 @@ pub fn MaybeDefined(comptime T: type) type {
 }
 
 fn getMaybeDefinedChildType(comptime T: type) ?type {
-    if(T == json.Value) return null; // workaround, json.Value.dump would get referenced but it doesn't compile
-    
+    if (T == json.Value) return null; // workaround, json.Value.dump would get referenced but it doesn't compile
+
     switch (@typeInfo(T)) {
         .Union => |unionInfo| {
             if (unionInfo.decls.len == 1 and comptime mem.eql(u8, unionInfo.decls[0].name, "__maybe_defined")) {
@@ -55,6 +55,13 @@ pub fn serialize(value: var, jsonStream: var) !void {
 
     if (T == json.Value) {
         try jsonStream.emitJson(value);
+
+        // HACK
+        // I think this should happen inside std. Without this jsonStream state stays as .Value,
+        // which is wrong when we're trying to emitJson inside an objectField
+        // TODO: Remove when fixed in std
+        jsonStream.popState();
+
         return;
     }
 
@@ -104,15 +111,14 @@ pub fn serialize(value: var, jsonStream: var) !void {
             }
         },
         .Union => |unionInfo| {
-            if (unionInfo.tag_type) |tagType| {
-                inline for (unionInfo.fields) |field| {
-                    if (@enumToInt(@as(tagType, value)) == field.enum_field.?.value) {
-                        return try serialize(@field(value, field.name), jsonStream);
+            if (unionInfo.tag_type) |UnionTagType| {
+                inline for (unionInfo.fields) |u_field| {
+                    if (@enumToInt(@as(UnionTagType, value)) == u_field.enum_field.?.value) {
+                        return try serialize(@field(value, u_field.name), jsonStream);
                     }
                 }
-                unreachable;
             } else {
-                @compileError("JSON serialize: Unsupported untagged union type: " ++ @typeName(T));
+                @compileError("Unable to stringify untagged union '" ++ @typeName(T) ++ "'");
             }
         },
         else => {
