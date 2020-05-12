@@ -108,7 +108,7 @@ pub const LocationLink = struct {
 
 pub const Diagnostic = struct {
     range: Range,
-    severity: MaybeDefined(Integer) = .NotDefined,
+    severity: MaybeDefined(DiagnosticSeverity) = .NotDefined,
     code: MaybeDefined(Any) = .NotDefined,
     source: MaybeDefined(String) = .NotDefined,
     message: String,
@@ -120,11 +120,12 @@ pub const DiagnosticRelatedInformation = struct {
     message: String,
 };
 
-pub const DiagnosticSeverity = struct {
-    pub const Error = 1;
-    pub const Warning = 2;
-    pub const Information = 3;
-    pub const Hint = 4;
+pub const DiagnosticSeverity = enum(Integer) {
+    Error = 1,
+    Warning = 2,
+    Information = 3,
+    Hint = 4,
+    _,
 };
 
 pub const Command = struct {
@@ -138,10 +139,11 @@ pub const TextEdit = struct {
     newText: String,
 };
 
-pub const TextDocumentSyncKind = struct {
-    pub const None = 0;
-    pub const Full = 1;
-    pub const Incremental = 2;
+pub const TextDocumentSyncKind = enum(Integer) {
+    None = 0,
+    Full = 1,
+    Incremental = 2,
+    _,
 };
 
 pub const InitializeParams = struct {
@@ -195,51 +197,53 @@ pub const CompletionParams = struct {
     context: MaybeDefined(CompletionContext),
 };
 
-pub const CompletionTriggerKind = struct {
-    pub const Invoked = 1;
-    pub const TriggerCharacter = 2;
-    pub const TriggerForIncompleteCompletions = 3;
+pub const CompletionTriggerKind = enum(Integer) {
+    Invoked = 1,
+    TriggerCharacter = 2,
+    TriggerForIncompleteCompletions = 3,
+    _,
 };
 
 pub const CompletionContext = struct {
-    triggerKind: Integer,
+    triggerKind: CompletionTriggerKind,
     triggerCharacter: MaybeDefined(String),
 };
 
 // not complete definition
 pub const CompletionItem = struct {
     label: String,
-    kind: MaybeDefined(Integer) = .NotDefined,
+    kind: MaybeDefined(CompletionItemKind) = .NotDefined,
     textEdit: MaybeDefined(TextEdit) = .NotDefined,
     filterText: MaybeDefined(String) = .NotDefined,
 };
 
-pub const CompletionItemKind = struct {
-    pub const Text = 1;
-    pub const Method = 2;
-    pub const Function = 3;
-    pub const Constructor = 4;
-    pub const Field = 5;
-    pub const Variable = 6;
-    pub const Class = 7;
-    pub const Interface = 8;
-    pub const Module = 9;
-    pub const Property = 10;
-    pub const Unit = 11;
-    pub const Value = 12;
-    pub const Enum = 13;
-    pub const Keyword = 14;
-    pub const Snippet = 15;
-    pub const Color = 16;
-    pub const File = 17;
-    pub const Reference = 18;
-    pub const Folder = 19;
-    pub const EnumMember = 20;
-    pub const Constant = 21;
-    pub const Struct = 22;
-    pub const Event = 23;
-    pub const Operator = 24;
-    pub const TypeParameter = 25;
+pub const CompletionItemKind = enum(Integer) {
+    Text = 1,
+    Method = 2,
+    Function = 3,
+    Constructor = 4,
+    Field = 5,
+    Variable = 6,
+    Class = 7,
+    Interface = 8,
+    Module = 9,
+    Property = 10,
+    Unit = 11,
+    Value = 12,
+    Enum = 13,
+    Keyword = 14,
+    Snippet = 15,
+    Color = 16,
+    File = 17,
+    Reference = 18,
+    Folder = 19,
+    EnumMember = 20,
+    Constant = 21,
+    Struct = 22,
+    Event = 23,
+    Operator = 24,
+    TypeParameter = 25,
+    _,
 };
 
 pub const DidCloseTextDocumentParams = struct {

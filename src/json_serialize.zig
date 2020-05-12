@@ -114,6 +114,9 @@ pub fn serialize(value: var, jsonStream: var) !void {
                 @compileError("Unable to stringify untagged union '" ++ @typeName(T) ++ "'");
             }
         },
+        .Enum => {
+            try jsonStream.emitNumber(@enumToInt(value));
+        },
         else => {
             @compileError("JSON serialize: Unsupported type: " ++ @typeName(T));
         },
@@ -196,6 +199,9 @@ fn serialize2Impl(value: var, alloc: *mem.Allocator) mem.Allocator.Error!json.Va
             } else {
                 @compileError("JSON serialize: Unsupported untagged union type: " ++ @typeName(T));
             }
+        },
+        .Enum => {
+            return json.Value{ .Integer = @enumToInt(value) };
         },
         else => {
             @compileError("JSON serialize: Unsupported type: " ++ @typeName(T));
@@ -327,6 +333,12 @@ fn deserializeImpl(comptime T: type, value: json.Value, alloc: *mem.Allocator) D
             } else {
                 @compileError("JSON deserialize: Unsupported untagged union type: " ++ @typeName(T));
             }
+        },
+        .Enum => {
+            if (value != .Integer) {
+                return error.InvalidType;
+            }
+            return @intToEnum(T, value.Integer);
         },
         else => {
             @compileError("JSON deserialize: Unsupported type: " ++ @typeName(T));

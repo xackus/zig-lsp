@@ -165,7 +165,7 @@ pub const Server = struct {
                         .character = @intCast(i64, location.column + (token.end - token.start)),
                     },
                 },
-                .severity = .{ .Defined = types.DiagnosticSeverity.Error },
+                .severity = .{ .Defined = .Error },
                 .message = text_list.items,
             };
         }
@@ -201,7 +201,7 @@ pub const Server = struct {
                 for (data.builtins) |builtin, i| {
                     items[i] = types.CompletionItem{
                         .label = builtin,
-                        .kind = .{ .Defined = types.CompletionItemKind.Function },
+                        .kind = .{ .Defined = .Function },
                         .textEdit = .{
                             .Defined = types.TextEdit{
                                 .range = types.Range{
@@ -228,7 +228,7 @@ pub const Server = struct {
 
         try self.send(types.Response{
             .id = reqId,
-            .result = .{ .Defined = json.Value.Null },
+            .result = .{ .Defined = .Null },
         });
     }
 };
