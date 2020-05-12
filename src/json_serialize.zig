@@ -55,13 +55,6 @@ pub fn serialize(value: var, jsonStream: var) !void {
 
     if (T == json.Value) {
         try jsonStream.emitJson(value);
-
-        // HACK
-        // I think this should happen inside std. Without this jsonStream state stays as .Value,
-        // which is wrong when we're trying to emitJson inside an objectField
-        // TODO: Remove when fixed in std
-        jsonStream.popState();
-
         return;
     }
 
